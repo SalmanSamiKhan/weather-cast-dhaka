@@ -7,11 +7,17 @@ import calendar
 import datetime
 import seaborn as sns
 import matplotlib.pyplot as plt
+import time
 
+from styles import get_base_styles, get_date_input_styles
+from components import styled_badge, show_loading_spinner, display_temperature_card
+
+# Set page config and title
 st.set_page_config("Dhaka Weather Patterns", layout="centered")
-
 st.title("📈 Dhaka Weather Patterns & Predictor")
-# st.markdown("Machine learning-based analysis using 50 years of climate data.")
+
+# Inject CSS styles
+st.markdown(get_base_styles(), unsafe_allow_html=True)
 
 @st.cache_data
 def load_data():
@@ -78,14 +84,301 @@ def plot_anomalies(df):
     st.pyplot(plt.gcf())
     plt.close()
 
-def styled_badge(text, color):
-    return f'<span style="background-color:{color}; color:white; padding:4px 10px; border-radius:8px; font-weight:bold;">{text}</span>'
+# app/streamlit_app.py (updated section)
 
+def display_historical_insights(df, selected_date):
+    """Display historical data insights with detailed statistics"""
+    day_data = df[(df['year'] == selected_date.year) & 
+                  (df['month'] == selected_date.month) & 
+                  (df['day'] == selected_date.day)]
+    
+    if not day_data.empty:
+        display_temperature_card(selected_date, day_data.iloc[0]['tavg'])
+    else:
+        st.warning("No historical data for this date.")
+        return
+    
+    st.markdown(f"""
+    <h3 style="font-size:26px; font-weight:600; margin-top:20px; margin-bottom:20px;">
+        📊 Climate Change & Insights for {selected_date.year}
+    </h3>
+    """, unsafe_allow_html=True)
+    
+    # Calculate all the required metrics
+    yearly_avg = df[df['year'] == selected_date.year]['tavg'].mean()
+    overall_avg = df['tavg'].mean()
+    diff = yearly_avg - overall_avg
+    
+    # Extreme days calculation
+    yearly_data = df[df['year'] == selected_date.year].copy()
+    yearly_data['extreme'] = yearly_data['tavg'].apply(
+        lambda x: 'extreme hot' if x > 35 else
+                  'hot' if x > 30 else
+                  'extreme cold' if x < 10 else
+                  'cold' if x < 15 else
+                  'normal'
+    )
+    extreme_counts = yearly_data['extreme'].value_counts()
+    
+    # Anomalies calculation
+    yearly_data['month_avg'] = yearly_data.groupby('month')['tavg'].transform('mean')
+    yearly_data['zscore'] = (yearly_data['tavg'] - yearly_data['month_avg']) / yearly_data.groupby('month')['tavg'].transform('std')
+    hot_spikes = (yearly_data['zscore'] > 2).sum()
+    cold_spikes = (yearly_data['zscore'] < -2).sum()
+    
+    # Create two columns for better layout
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Basic temperature stats
+        st.markdown(f"""
+            <div style="
+                padding: 15px;
+                border-radius: 12px;
+                background-color: #2f3e46;
+                border: 1.5px solid #52796f;
+                box-shadow: 2px 2px 8px rgba(82, 121, 111, 0.5);
+                color: white;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                margin-bottom: 20px;
+            ">
+                <h3 style="color: #84a98c; margin-top: 0;">Temperature Statistics</h3>
+                <p style="font-size:16px; margin: 8px 0;">
+                    <b>Average temperature in {selected_date.year}:</b> {yearly_avg:.2f} °C
+                </p>
+                <p style="font-size:16px; margin: 8px 0;">
+                    <b>Overall 50-year average temperature:</b> {overall_avg:.2f} °C
+                </p>
+                <p style="font-size:16px; margin: 8px 0;">
+                    <b>Temperature difference:</b> 
+                    <span style="color:{'lightgreen' if diff < 0 else '#ff6b6b'};">{diff:+.2f} °C</span>
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Extreme days
+        st.markdown(f"""
+            <div style="
+                padding: 15px;
+                border-radius: 12px;
+                background-color: #2f3e46;
+                border: 1.5px solid #52796f;
+                box-shadow: 2px 2px 8px rgba(82, 121, 111, 0.5);
+                color: white;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                margin-bottom: 20px;
+            ">
+                <h3 style="color: #84a98c; margin-top: 0;">Extreme Days Count</h3>
+                <p style="font-size:16px; margin: 8px 0;">
+                    <b style="color:#ff9f1c;">Hot days (>30°C):</b> {extreme_counts.get('hot', 0)}
+                </p>
+                <p style="font-size:16px; margin: 8px 0;">
+                    <b style="color:#a8dadc;">Cold days (<15°C):</b> {extreme_counts.get('cold', 0)}
+                </p>
+                <p style="font-size:16px; margin: 8px 0;">
+                    <b style="color:#e63946;">Extreme hot days (>35°C):</b> {extreme_counts.get('extreme hot', 0)}
+                </p>
+                <p style="font-size:16px; margin: 8px 0;">
+                    <b style="color:#457b9d;">Extreme cold days (<10°C):</b> {extreme_counts.get('extreme cold', 0)}
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        # Anomaly stats
+        st.markdown(f"""
+            <div style="
+                padding: 15px;
+                border-radius: 12px;
+                background-color: #2f3e46;
+                border: 1.5px solid #52796f;
+                box-shadow: 2px 2px 8px rgba(82, 121, 111, 0.5);
+                color: white;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                margin-bottom: 20px;
+            ">
+                <h3 style="color: #84a98c; margin-top: 0;">Temperature Anomalies</h3>
+                <p style="font-size:16px; margin: 8px 0;">
+                    <b style="color:#f4a261;">Hot spike days (z > 2):</b> {hot_spikes}
+                </p>
+                <p style="font-size:16px; margin: 8px 0;">
+                    <b style="color:#8ecae6;">Cold spike days (z < -2):</b> {cold_spikes}
+                </p>
+                <p style="font-size:14px; margin: 8px 0; color: #b7b7a4;">
+                    <i>Anomalies are calculated relative to monthly averages</i>
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Visual badges for quick reference
+        st.markdown("""
+            <div style="margin-top: 20px;">
+                <h4 style="color: #84a98c; margin-bottom: 10px;">Quick Stats</h4>
+        """, unsafe_allow_html=True)
+        
+        # Create a grid of badges
+        cols = st.columns(2)
+        with cols[0]:
+            st.markdown(styled_badge(f"Avg Temp: {yearly_avg:.1f}°C", "#2a9d8f"), unsafe_allow_html=True)
+            st.markdown(styled_badge(f"Hot Days: {extreme_counts.get('hot', 0)}", "#e76f51"), unsafe_allow_html=True)
+            st.markdown(styled_badge(f"Hot Spikes: {hot_spikes}", "#d62828"), unsafe_allow_html=True)
+        
+        with cols[1]:
+            st.markdown(styled_badge(f"Diff: {diff:+.2f}°C", "#457b9d"), unsafe_allow_html=True)
+            st.markdown(styled_badge(f"Cold Days: {extreme_counts.get('cold', 0)}", "#1d3557"), unsafe_allow_html=True)
+            st.markdown(styled_badge(f"Cold Spikes: {cold_spikes}", "#003049"), unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+def display_future_prediction(model, df, selected_date):
+    """Display future prediction results with consistent styling"""
+    if model is None:
+        st.error("Model not found. Please train and save the model first.")
+        return
+    
+    with st.spinner("Predicting future temperature..."):
+        input_df = pd.DataFrame([[selected_date.year, selected_date.month, selected_date.day]],
+                                columns=["year", "month", "day"])
+        pred = model.predict(input_df)[0]
+        
+        display_temperature_card(selected_date, pred, is_predicted=True)
+        
+        st.markdown(f"""
+        <h3 style="font-size:26px; font-weight:600; margin-top:20px; margin-bottom:20px;">
+            📊 Projected Climate Insights for {selected_date.year}
+        </h3>
+        """, unsafe_allow_html=True)
+        
+        # Calculate all required metrics
+        overall_avg = df['tavg'].mean()
+        past_decade = df[df['year'] >= df['year'].max() - 9]
+        decade_avg = past_decade['tavg'].mean()
+        diff = pred - overall_avg
+        
+        # Historical extremes for projection
+        hot_days = df[df['tavg'] > 30].groupby('year').size().mean()
+        extreme_hot_days = df[df['tavg'] > 35].groupby('year').size().mean()
+        cold_days = df[df['tavg'] < 15].groupby('year').size().mean()
+        extreme_cold_days = df[df['tavg'] < 10].groupby('year').size().mean()
+        
+        # Anomalies projection
+        df['month_avg'] = df.groupby('month')['tavg'].transform('mean')
+        df['zscore'] = (df['tavg'] - df['month_avg']) / df.groupby('month')['tavg'].transform('std')
+        hot_spikes = (df['zscore'] > 2).groupby(df['time'].dt.year).sum().mean()
+        cold_spikes = (df['zscore'] < -2).groupby(df['time'].dt.year).sum().mean()
+        
+        # Create two columns for layout
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Temperature comparison stats
+            st.markdown(f"""
+                <div style="
+                    padding: 15px;
+                    border-radius: 12px;
+                    background-color: #2f3e46;
+                    border: 1.5px solid #52796f;
+                    box-shadow: 2px 2px 8px rgba(82, 121, 111, 0.5);
+                    color: white;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    margin-bottom: 20px;
+                ">
+                    <h3 style="color: #84a98c; margin-top: 0;">Projected Temperature</h3>
+                    <p style="font-size:16px; margin: 8px 0;">
+                        <b>Predicted temperature:</b> <span style="color:#ff9f1c;">{pred:.2f} °C</span>
+                    </p>
+                    <p style="font-size:16px; margin: 8px 0;">
+                        <b>Long-term average:</b> {overall_avg:.2f} °C
+                    </p>
+                    <p style="font-size:16px; margin: 8px 0;">
+                        <b>Recent decade average:</b> {decade_avg:.2f} °C
+                    </p>
+                    <p style="font-size:16px; margin: 8px 0;">
+                        <b>Projected difference:</b> 
+                        <span style="color:{'lightgreen' if diff < 0 else '#ff6b6b'};">{diff:+.2f} °C</span>
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Projected extremes
+            st.markdown(f"""
+                <div style="
+                    padding: 15px;
+                    border-radius: 12px;
+                    background-color: #2f3e46;
+                    border: 1.5px solid #52796f;
+                    box-shadow: 2px 2px 8px rgba(82, 121, 111, 0.5);
+                    color: white;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    margin-bottom: 20px;
+                ">
+                    <h3 style="color: #84a98c; margin-top: 0;">Projected Extremes</h3>
+                    <p style="font-size:16px; margin: 8px 0;">
+                        <b style="color:#ff9f1c;">Hot days (>30°C):</b> ~{hot_days:.0f}
+                    </p>
+                    <p style="font-size:16px; margin: 8px 0;">
+                        <b style="color:#e63946;">Extreme hot days (>35°C):</b> ~{extreme_hot_days:.0f}
+                    </p>
+                    <p style="font-size:16px; margin: 8px 0;">
+                        <b style="color:#a8dadc;">Cold days (<15°C):</b> ~{cold_days:.0f}
+                    </p>
+                    <p style="font-size:16px; margin: 8px 0;">
+                        <b style="color:#457b9d;">Extreme cold days (<10°C):</b> ~{extreme_cold_days:.0f}
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            # Projected anomalies
+            st.markdown(f"""
+                <div style="
+                    padding: 15px;
+                    border-radius: 12px;
+                    background-color: #2f3e46;
+                    border: 1.5px solid #52796f;
+                    box-shadow: 2px 2px 8px rgba(82, 121, 111, 0.5);
+                    color: white;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    margin-bottom: 20px;
+                ">
+                    <h3 style="color: #84a98c; margin-top: 0;">Projected Anomalies</h3>
+                    <p style="font-size:16px; margin: 8px 0;">
+                        <b style="color:#f4a261;">Hot spike days (z > 2):</b> ~{hot_spikes:.0f}
+                    </p>
+                    <p style="font-size:16px; margin: 8px 0;">
+                        <b style="color:#8ecae6;">Cold spike days (z < -2):</b> ~{cold_spikes:.0f}
+                    </p>
+                    <p style="font-size:14px; margin: 8px 0; color: #b7b7a4;">
+                        <i>Based on historical anomaly patterns</i>
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Quick stats badges
+            st.markdown("""
+                <div style="margin-top: 20px;">
+                    <h4 style="color: #84a98c; margin-bottom: 10px;">Projected Quick Stats</h4>
+            """, unsafe_allow_html=True)
+            
+            # Create a grid of badges
+            cols = st.columns(2)
+            with cols[0]:
+                st.markdown(styled_badge(f"Predicted: {pred:.1f}°C", "#2a9d8f"), unsafe_allow_html=True)
+                st.markdown(styled_badge(f"Hot Days: ~{hot_days:.0f}", "#e76f51"), unsafe_allow_html=True)
+                st.markdown(styled_badge(f"Hot Spikes: ~{hot_spikes:.0f}", "#d62828"), unsafe_allow_html=True)
+            
+            with cols[1]:
+                st.markdown(styled_badge(f"Diff: {diff:+.2f}°C", "#457b9d"), unsafe_allow_html=True)
+                st.markdown(styled_badge(f"Cold Days: ~{cold_days:.0f}", "#1d3557"), unsafe_allow_html=True)
+                st.markdown(styled_badge(f"Cold Spikes: ~{cold_spikes:.0f}", "#003049"), unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+# Main app logic
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🌡️ Temperature",
-    "📊 Climate Change",
+    "📊 Climate",
     "🔥 Extremes",
-    "🌀 Monthly Patterns",
+    "🌀 Patterns",
     "⛈️ Anomalies"
 ])
 
@@ -95,8 +388,9 @@ today = datetime.date.today()
 max_future_year = 2075
 
 with tab1:
-    st.markdown("<h3 style='font-size:24px; margin-bottom:10px;'>📅 Select a Date for Weather Info</h3>", unsafe_allow_html=True)
-
+    st.markdown(get_date_input_styles(), unsafe_allow_html=True)
+    st.markdown("<h3 style='font-size:24px;'>📅 Select a Date for Weather Info</h3>", unsafe_allow_html=True)
+    
     selected_date = st.date_input(
         label="",
         value=today,
@@ -104,179 +398,21 @@ with tab1:
         max_value=datetime.date(max_future_year, 12, 31)
     )
 
+    if 'last_date' not in st.session_state:
+        st.session_state.last_date = selected_date
+
+    date_changed = st.session_state.last_date != selected_date
+    st.session_state.last_date = selected_date
+
+    if date_changed and selected_date > today:
+        with st.spinner("Predicting future temperature..."):
+            time.sleep(1)
 
     if selected_date <= today:
-        # Show actual temp
-        day_data = df[(df['year'] == selected_date.year) & 
-                      (df['month'] == selected_date.month) & 
-                      (df['day'] == selected_date.day)]
-        if not day_data.empty:
-            actual_temp = day_data.iloc[0]['tavg']
-            # st.success(f"Actual Avg Temperature on {selected_date}: {actual_temp:.2f} °C")
-            st.markdown(f"""
-            <div style="
-                background-color: #d4edda;
-                color: #155724;
-                padding: 10px;
-                border-left: 6px solid #28a745;
-                border-radius: 8px;
-                font-size: 20px;
-                margin-bottom: 1rem;
-            ">
-                🌡️ <strong>Actual Avg Temperature on {selected_date}:</strong> 
-                <span style="font-size:24px; color:#d62828; font-weight:bold;">{actual_temp:.2f} °C</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-        else:
-            st.warning("No historical data for this date.")
-
-        st.markdown(f"### Climate Change & Insights for {selected_date.year}")
-
-        # Climate change: average temp trend for selected year
-        yearly_avg = df[df['year'] == selected_date.year]['tavg'].mean()
-        overall_avg = df['tavg'].mean()
-        diff = yearly_avg - overall_avg
-
-        
-        st.markdown(f"""
-            <div style="
-                padding: 15px;
-                border-radius: 12px;
-                background-color: #2f3e46;  /* dark slate blue-gray */
-                border: 1.5px solid #52796f;  /* softer greenish-gray border */
-                box-shadow: 2px 2px 8px rgba(82, 121, 111, 0.5);
-                max-width: 600px;
-                margin-bottom: 20px;
-                color: white;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            ">
-                <p style="font-size:16px; margin: 8px 0;">
-                    <b>Average temperature in {selected_date.year}:</b> {yearly_avg:.2f} °C
-                </p>
-                <p style="font-size:16px; margin: 8px 0;">
-                    <b>Overall 50-year average temperature:</b> {overall_avg:.2f} °C
-                </p>
-                <p style="font-size:16px; margin: 8px 0;">
-                    <b>Temperature difference from long-term average:</b> 
-                    <span style="color:{'lightgreen' if diff < 0 else '#ff6b6b'};">{diff:+.2f} °C</span>
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
-
-
-        # Extremes: count hot/cold/extreme hot/extreme cold days that year
-        extremes = df[df['year'] == selected_date.year].copy()
-        extremes['extreme'] = extremes['tavg'].apply(
-            lambda x: 'extreme hot' if x > 35 else
-                      'hot' if x > 30 else
-                      'extreme cold' if x < 10 else
-                      'cold' if x < 15 else
-                      'normal'
-        )
-        counts = extremes['extreme'].value_counts()
-
-        def get_count(label):
-            return counts[label] if label in counts else 0
-
-        st.markdown(f"""
-            <div style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom:20px;">
-                <div>{styled_badge(f"Hot days (>30°C): {get_count('hot')}", '#ff8c00')}</div>
-                <div>{styled_badge(f"Cold days (<15°C): {get_count('cold')}", '#1e90ff')}</div> 
-            </div>
-            <div style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom:20px;">
-                <div>{styled_badge(f"Extreme hot days (>35°C): {get_count('extreme hot')}", '#d62728')}</div>
-                <div>{styled_badge(f"Extreme cold days (<10°C): {get_count('extreme cold')}", '#00509e')}</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-
-        # Anomalies: days with big temp spikes
-        extremes['month_avg'] = extremes.groupby('month')['tavg'].transform('mean')
-        extremes['zscore'] = (extremes['tavg'] - extremes['month_avg']) / extremes.groupby('month')['tavg'].transform('std')
-        hot_spikes = (extremes['zscore'] > 2).sum()
-        cold_spikes = (extremes['zscore'] < -2).sum()
-
-
-        st.markdown(f"""
-            <div style="
-                padding: 15px;
-                border-radius: 12px;
-                background-color: #2f3e46;  /* dark slate blue-gray */
-                border: 1.5px solid #52796f;  /* softer greenish-gray border */
-                box-shadow: 2px 2px 8px rgba(82, 121, 111, 0.5);
-                max-width: 400px;
-                margin-top: 10px;
-                color: white;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            ">
-                <p style="font-size:16px; margin: 8px 0;">
-                    <b style='color:#f4a261;'>Hot spike days (z > 2):</b> <span style='color:#e76f51;'>{hot_spikes}</span>
-                </p>
-                <p style="font-size:16px; margin: 8px 0;">
-                    <b style='color:#8ecae6;'>Cold spike days (z < -2):</b> <span style='color:#219ebc;'>{cold_spikes}</span>
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
-
-
-
+        display_historical_insights(df, selected_date)
     else:
-        # Future prediction
-        if model is None:
-            st.error("Model not found. Please train and save the model first.")
-        else:
-            input_df = pd.DataFrame([[selected_date.year, selected_date.month, selected_date.day]], columns=["year", "month", "day"])
-            pred = model.predict(input_df)[0]
-            # st.success(f"Predicted Avg Temperature on {selected_date}: {pred:.2f} °C")
-            st.markdown(f"""
-                <div style="
-                    background-color: #d4edda;
-                    color: #155724;
-                    padding: 10px 16px;
-                    border-left: 6px solid #28a745;
-                    border-radius: 8px;
-                    font-size: 20px;
-                    margin-bottom: 1rem;
-                ">
-                    🌡️ <strong>Predicted Avg Temperature on {selected_date}:</strong> 
-                    <span style="font-size:24px; color:#d62828; font-weight:bold;">{pred:.2f} °C</span>
-                </div>
-            """, unsafe_allow_html=True)
+        display_future_prediction(model, df, selected_date)
 
-
-            st.markdown("### Projected Climate Insights Based on Historical Patterns")
-            overall_avg = df['tavg'].mean()
-            st.markdown(f"""
-                <div style="
-                    padding: 15px;
-                    border-radius: 12px;
-                    background-color: #2f3e46;
-                    border: 1.5px solid #52796f;
-                    box-shadow: 2px 2px 8px rgba(82, 121, 111, 0.5);
-                    max-width: 600px;
-                    margin-top: 15px;
-                    color: white;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                ">
-                    <p style="font-size:16px; margin: 8px 0;">
-                        <b style="color:#f4a261;">Long-term average temperature:</b> 
-                        <span style="color:#ffd166;">{overall_avg:.2f} °C</span>
-                    </p>
-                    <p style="font-size:16px; margin: 8px 0;">
-                        🔺 Expect <span style="color:#ef476f;"><b>increasing trend</b></span> in temperature consistent with past 50 years.
-                    </p>
-                    <p style="font-size:16px; margin: 8px 0;">
-                        🔥 Extreme <span style="color:#f77f00;"><b>heat</b></span> and ❄️ <span style="color:#118ab2;"><b>cold</b></span> days projected based on historical patterns.
-                    </p>
-                    <p style="font-size:16px; margin: 8px 0;">
-                        ⚠️ Anomalies expected to continue following historical <span style="color:#90e0ef;"><b>variability</b></span>.
-                    </p>
-                </div>
-            """, unsafe_allow_html=True)
-
-
-# Full charts in their tabs
 with tab2: plot_trends(df)
 with tab3: plot_extremes(df)
 with tab4: plot_monthly_heatmap(df)

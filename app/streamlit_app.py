@@ -47,17 +47,30 @@ def plot_trends(df):
     plt.close()
 
 def plot_extremes(df):
-    df['extreme'] = df['tavg'].apply(lambda x: 'hot' if x > 30 else 'cold' if x < 10 else 'normal')
+    df['extreme'] = df['tavg'].apply(lambda x: 'hot' if x > 30 else 'cold' if x < 15 else 'normal')
     extreme_counts = df.groupby(['year', 'extreme']).size().unstack(fill_value=0)
+
+    # Ensure 'hot' and 'cold' columns always exist
     for col in ['hot', 'cold']:
         if col not in extreme_counts.columns:
             extreme_counts[col] = 0
-    extreme_counts = extreme_counts[['hot', 'cold'] + [c for c in extreme_counts.columns if c not in ['hot', 'cold']]]
-    extreme_counts[['hot', 'cold']].plot(kind='bar', stacked=True, figsize=(14,6))
+
+    # Select and reorder only 'hot' and 'cold'
+    plot_data = extreme_counts[['hot', 'cold']]
+
+    # Plot using correct color order: hot = orange, cold = blue
+    plot_data.plot(
+        kind='bar',
+        stacked=True,
+        figsize=(14, 6),
+        color=['orange', 'blue']  # this order matches ['hot', 'cold']
+    )
+
     plt.title("Extreme Weather Events Over Time")
     plt.ylabel("Days")
     st.pyplot(plt.gcf())
     plt.close()
+
 
 def plot_monthly_heatmap(df):
     monthly = df.groupby(['year', 'month'])['tavg'].mean().unstack()

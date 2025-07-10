@@ -64,3 +64,33 @@
 7. Run the app
    ```bash
    streamlit run app/streamlit_app.py
+
+## Q&A
+
+### 1. Why did you choose Meteostat and Streamlit?
+Meteostat provides reliable, historical weather data with a simple Python API, making it easy to automate data collection for Dhaka over many years.
+Streamlit is a modern, open-source framework for building interactive data apps quickly. It allows for rapid prototyping and sharing of data visualizations and models with users without complex web development.
+
+### 2. How do you handle missing or anomalous data?
+During data cleaning (handled in clean_data.py), missing values are identified and either filled using interpolation or removed, depending on the context and impact on analysis.
+Anomalous data points (outliers) are detected using statistical methods (e.g., z-score, IQR) and are either flagged for analysis or handled appropriately to avoid skewing results.
+
+### 3. What model did you use for forecasting and why?
+The project uses a Ridge Regression model (a regularized linear regression) for temperature prediction. This is implemented using scikit-learn’s Ridge class, combined with feature scaling in a pipeline. Ridge regression is chosen for its stability and ability to prevent overfitting, making it suitable for time-dependent weather data. (saved as temperature_model.joblib) for temperature prediction. Likely candidates are linear regression, decision trees, or time series models (e.g., ARIMA), chosen for their interpretability and suitability for time-dependent weather data.
+The model was selected based on performance (accuracy, RMSE) and its ability to generalize on unseen data.
+
+### 4. How do your visualizations help in understanding climate trends?
+Visualizations such as anomaly trends, climate trends, extreme events, and monthly heatmaps provide clear, intuitive insights into long-term weather patterns, frequency of extreme events, and seasonal variations.
+These plots help both technical and non-technical audiences grasp complex climate data and identify significant changes or anomalies over time.
+
+### 5. What are the limitations of your approach?
+Data limitations: The accuracy depends on the quality and completeness of the Meteostat data.
+Model limitations: The chosen model may not capture all nonlinearities or rare events in the data.
+Scope: The analysis is limited to Dhaka and may not generalize to other regions.
+External factors: The model does not account for all possible external influences (e.g., urbanization, climate change effects beyond historical trends).
+
+## 6. Potential Improvements
+Incorporating more advanced models (e.g., LSTM, Prophet).
+Adding more granular weather features (humidity, rainfall).
+Integrating real-time data updates.
+Expanding to regional or national scale.

@@ -206,3 +206,8 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 .~lock.*#
+
+# Project assets
+visualizations/
+data/
+models/

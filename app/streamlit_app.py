@@ -13,9 +13,9 @@ import time
 from styles import get_base_styles, get_date_input_styles
 from components import styled_badge, show_loading_spinner, display_temperature_card
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-csv_path = os.path.join(BASE_DIR, "../data/dhaka_weather_cleaned.csv")
-trained_model_path = os.path.join(BASE_DIR, "../models/temperature_model.joblib")
+BASE_DIR = Path(__file__).resolve().parent.parent
+csv_path = BASE_DIR / "data" / "dhaka_weather_cleaned.csv"
+trained_model_path = BASE_DIR / "models" / "temperature_model.joblib"
 
 # Set page config and title
 st.set_page_config("Dhaka Weather Patterns", layout="centered")

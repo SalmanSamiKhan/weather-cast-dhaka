@@ -1,4 +1,5 @@
 # app/streamlit_app.py
+import os
 import streamlit as st
 import pandas as pd
 import joblib
@@ -12,6 +13,9 @@ import time
 from styles import get_base_styles, get_date_input_styles
 from components import styled_badge, show_loading_spinner, display_temperature_card
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+csv_path = os.path.join(BASE_DIR, "../data/dhaka_weather_cleaned.csv")
+
 # Set page config and title
 st.set_page_config("Dhaka Weather Patterns", layout="centered")
 st.title("📈 Dhaka Weather Patterns & Predictor")
@@ -21,7 +25,9 @@ st.markdown(get_base_styles(), unsafe_allow_html=True)
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("../data/dhaka_weather_cleaned.csv", parse_dates=["time"])
+    # df = pd.read_csv("../data/dhaka_weather_cleaned.csv", parse_dates=["time"])
+    # df = pd.read_csv("./data/dhaka_weather_cleaned.csv", parse_dates=["time"])
+    df = pd.read_csv(csv_path, parse_dates=["time"])
     df['year'] = df['time'].dt.year
     df['month'] = df['time'].dt.month
     df['day'] = df['time'].dt.day

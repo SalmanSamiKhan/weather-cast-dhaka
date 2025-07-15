@@ -15,6 +15,7 @@ from components import styled_badge, show_loading_spinner, display_temperature_c
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 csv_path = os.path.join(BASE_DIR, "../data/dhaka_weather_cleaned.csv")
+trained_model_path = os.path.join(BASE_DIR, "../models/temperature_model.joblib")
 
 # Set page config and title
 st.set_page_config("Dhaka Weather Patterns", layout="centered")
@@ -25,8 +26,6 @@ st.markdown(get_base_styles(), unsafe_allow_html=True)
 
 @st.cache_data
 def load_data():
-    # df = pd.read_csv("../data/dhaka_weather_cleaned.csv", parse_dates=["time"])
-    # df = pd.read_csv("./data/dhaka_weather_cleaned.csv", parse_dates=["time"])
     df = pd.read_csv(csv_path, parse_dates=["time"])
     df['year'] = df['time'].dt.year
     df['month'] = df['time'].dt.month
@@ -36,7 +35,7 @@ def load_data():
 
 @st.cache_resource
 def load_model():
-    model_path = Path("../models/temperature_model.joblib")
+    model_path = Path(trained_model_path)
     if model_path.exists():
         return joblib.load(model_path)
     return None
@@ -97,9 +96,15 @@ def plot_anomalies(df):
         if col not in anomalies.columns:
             anomalies[col] = 0
     anomalies = anomalies[['hot-spike', 'cold-spike'] + [c for c in anomalies.columns if c not in ['hot-spike', 'cold-spike']]]
-    anomalies[['hot-spike', 'cold-spike']].plot(figsize=(12,6))
+    
+    # Plot with specific colors
+    ax = anomalies[['hot-spike', 'cold-spike']].plot(
+        figsize=(12, 6),
+        color={'hot-spike': 'gold', 'cold-spike': 'blue'}
+    )
     plt.title("Anomaly Spikes (Z-score > ±2)")
     plt.ylabel("Anomaly Days")
+    plt.legend(title="Anomaly Type", loc='upper right')
     st.pyplot(plt.gcf())
     plt.close()
 

@@ -6,22 +6,23 @@
 
 ## Features
 
-- **Historical Temperature Data Exploration**  
-  Select any past date (from 1975 onwards) to view actual average temperature along with detailed climate insights such as temperature trends, extreme hot/cold days, and anomaly spikes.
+- **Historical Temperature Data Exploration**: Select any past date (from 1975 onwards) to view the actual average temperature, along with detailed climate insights such as temperature trends, extreme hot/cold days, and anomaly spikes.
+- **Future Temperature Prediction**: Predict the average temperature for future dates (up to 2075) using a trained Ridge Regression model based on historical data trends.
+- **Interactive Data Visualizations**:
+  - **Climate Trends**: Visualize long-term changes in average, maximum, and minimum temperatures.
+  - **Extreme Weather Events**: Track the frequency of hot and cold days over the years.
+  - **Monthly Temperature Heatmaps**: Identify seasonal patterns and temperature variations.
+  - **Temperature Anomaly Spikes**: Detect unusual temperature spikes compared to monthly averages.
+- **Stylish and Responsive UI**: A clear, color-coded interface with badges and charts to help you quickly understand weather patterns and future projections.
 
-- **Future Temperature Prediction**  
-  Predict average temperature for future dates (up to 2075) using a trained machine learning model based on historical data trends.
-
-- **Interactive Tabs for Data Visualizations**  
-  - Climate change trends  
-  - Extreme weather event counts  
-  - Monthly temperature heatmaps  
-  - Temperature anomaly spikes  
-
-- **Stylish and Responsive UI**  
-  Clear, color-coded insights with badges and charts to help you quickly understand the weather patterns and future projections.
-
----
+### Temperature Anomalies (Explained)
+- "Anomalies" refer to how much a specific day's temperature deviates from what's typical for that time of year — in this case, based on monthly averages.
+- We compute a z-score for each day's average temperature relative to its month
+### Interpretation of Anomaly Report
+- Hot spike days (z > 2): 4
+→ There were 4 days where the temperature was more than 2 standard deviations above the average for that month — likely heatwaves or record highs.
+- Cold spike days (z < -2): 16
+→ There were 16 days where the temperature was more than 2 standard deviations below the monthly norm — possible cold waves or unusually chilly days.
 
 ## Getting Started
 
@@ -29,68 +30,90 @@
 
 - Python 3.8 or higher
 - [Streamlit](https://streamlit.io/)
-- Required Python packages (listed in `requirements.txt`):
-  - pandas
-  - scikit-learn
-  - joblib
-  - matplotlib
-  - seaborn
-  - streamlit
+- The required Python packages are listed in `requirements.txt`.
 
 ### Installation
 
-1. Clone the repository:
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/SalmanSamiKhan/weather-cast-dhaka.git
+    cd weather-cast-dhaka
+    ```
 
-   ```bash
-   git clone https://github.com/yourusername/dhaka-weather-predictor.git
-   cd dhaka-weather-predictor
-2. Create and activate a virtual environment:
+2.  **Create and activate a virtual environment:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+    ```
 
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate # Windows: venv\Scripts\activate
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-4. Download weather data
-   ```bash
-   python scripts/download_data.py
-5. Clean weather data
-   ```bash
-   python scripts/clean_data.py
-6. Prepare data and model:
+3.  **Install the dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+### Data Processing
+4.  **Download the weather data:**
+    ```bash
+    python scripts/download_data.py
+    ```
+
+5.  **Clean the weather data:**
+    ```bash
+    python scripts/clean_data.py
+    ```
+### Training Model
+6.  **Train the prediction model:**
+
     ```bash
     python scripts/train_model.py
-7. Run the app
-   ```bash
-   streamlit run app/streamlit_app.py
+    ```
+### Running the application
+7.  **Run the Streamlit application:**
+
+    ```bash
+    streamlit run app/streamlit_app.py
+    ```
+8. **Open in Browser**
+- Local URL: http://localhost:8501
+- Network URL: http://192.168.100.212:8501
+---
 
 ## Q&A
 
 ### 1. Why did you choose Meteostat and Streamlit?
-Meteostat provides reliable, historical weather data with a simple Python API, making it easy to automate data collection for Dhaka over many years.
-Streamlit is a modern, open-source framework for building interactive data apps quickly. It allows for rapid prototyping and sharing of data visualizations and models with users without complex web development.
+
+-   **Meteostat**: It provides a reliable, historical weather dataset with a simple Python API, making it easy to automate data collection for Dhaka over many years.
+-   **Streamlit**: It is a modern, open-source framework for building interactive data applications quickly. It allows for rapid prototyping and sharing of data visualizations and models without requiring complex web development.
 
 ### 2. How do you handle missing or anomalous data?
-During data cleaning (handled in clean_data.py), missing values are identified and either filled using interpolation or removed, depending on the context and impact on analysis.
-Anomalous data points (outliers) are detected using statistical methods (e.g., z-score, IQR) and are either flagged for analysis or handled appropriately to avoid skewing results.
+
+-   **Missing Values**: During data cleaning (in `scripts/clean_data.py`), missing values are filled using interpolation to ensure data continuity.
+-   **Anomalous Data**: Outliers are detected using statistical methods and are corrected to prevent them from skewing the analysis and model training.
 
 ### 3. What model did you use for forecasting and why?
-The project uses a Ridge Regression model (a regularized linear regression) for temperature prediction. This is implemented using scikit-learn’s Ridge class, combined with feature scaling in a pipeline. Ridge regression is chosen for its stability and ability to prevent overfitting, making it suitable for time-dependent weather data. (saved as temperature_model.joblib) for temperature prediction. Likely candidates are linear regression, decision trees, or time series models (e.g., ARIMA), chosen for their interpretability and suitability for time-dependent weather data.
-The model was selected based on performance (accuracy, RMSE) and its ability to generalize on unseen data.
+
+This project uses a **Ridge Regression** model from scikit-learn, trained through a pipeline that includes standard scaling for feature normalization. Ridge Regression was selected due to its robustness in handling multicollinearity and its ability to prevent overfitting through L2 regularization — an important consideration when working with seasonal and time-based weather features. The model is saved as `temperature_model.joblib` after training.
+
+#### The Model is Trained Using:
+- Year, month, and day as temporal predictors
+- 5-fold cross-validation on the training set to evaluate mean absolute error (MAE)
+- Time-based data splitting to respect temporal dependencies
+- One-hot encoded season categories (if available) to improve seasonal sensitivity, especially for capturing winter anomalies. If the dataset contains a season column, it's one-hot encoded and included in training. This helps improve seasonal temperature forecasting, particularly for months with high variance like January and April.
 
 ### 4. How do your visualizations help in understanding climate trends?
-Visualizations such as anomaly trends, climate trends, extreme events, and monthly heatmaps provide clear, intuitive insights into long-term weather patterns, frequency of extreme events, and seasonal variations.
-These plots help both technical and non-technical audiences grasp complex climate data and identify significant changes or anomalies over time.
 
-### 5. What are the limitations of your approach?
-Data limitations: The accuracy depends on the quality and completeness of the Meteostat data.
-Model limitations: The chosen model may not capture all nonlinearities or rare events in the data.
-Scope: The analysis is limited to Dhaka and may not generalize to other regions.
-External factors: The model does not account for all possible external influences (e.g., urbanization, climate change effects beyond historical trends).
+The visualizations provide clear, intuitive insights into long-term weather patterns, the frequency of extreme events, and seasonal variations. These plots help both technical and non-technical audiences grasp complex climate data and identify significant changes or anomalies over time.
 
-## 6. Potential Improvements
-Incorporating more advanced models (e.g., LSTM, Prophet).
-Adding more granular weather features (humidity, rainfall).
-Integrating real-time data updates.
-Expanding to regional or national scale.
+### 5. What are the limitations of this approach?
+
+-   **Data Limitations**: The accuracy of the predictions depends on the quality and completeness of the Meteostat data.
+-   **Model Limitations**: The Ridge Regression model may not capture all non-linearities or rare events in the weather data.
+-   **Scope**: The analysis is limited to Dhaka and may not be applicable to other regions.
+-   **External Factors**: The model does not account for all possible external influences, such as urbanization or climate change effects that are not captured in the historical trends.
+
+### 6. What are some potential improvements?
+
+-   Incorporate more advanced models (e.g., LSTM, Prophet).
+-   Add more granular weather features, such as humidity and rainfall.
+-   Integrate real-time data updates.
+-   Expand the analysis to a regional or national scale.

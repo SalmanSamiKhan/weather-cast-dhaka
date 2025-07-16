@@ -260,8 +260,24 @@ def display_future_prediction(model, df, selected_date):
         return
     
     with st.spinner("Predicting future temperature..."):
-        input_df = pd.DataFrame([[selected_date.year, selected_date.month, selected_date.day]],
-                                columns=["year", "month", "day"])
+        # Determine season for selected_date
+        season_map = {
+            1: "Winter", 2: "Winter", 3: "Spring",
+            4: "Summer", 5: "Summer", 6: "Summer",
+            7: "Monsoon", 8: "Monsoon", 9: "Monsoon",
+            10: "Autumn", 11: "Autumn", 12: "Winter"
+        }
+        season = season_map.get(selected_date.month, "Winter")
+        season_categories = ["Autumn", "Monsoon", "Spring", "Winter", "Summer"]
+        # Build input with all required columns
+        input_dict = {
+            "year": selected_date.year,
+            "month": selected_date.month,
+            "day": selected_date.day
+        }
+        for cat in season_categories:
+            input_dict[f"season_{cat}"] = 1 if cat == season else 0
+        input_df = pd.DataFrame([input_dict])
         pred = model.predict(input_df)[0]
         
         display_temperature_card(selected_date, pred, is_predicted=True)

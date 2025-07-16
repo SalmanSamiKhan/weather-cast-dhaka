@@ -37,9 +37,21 @@ def train_model():
     df['year'] = df['time'].dt.year
     df['month'] = df['time'].dt.month
     df['day'] = df['time'].dt.day
-
-    # Features and target
-    X = df[['year', 'month', 'day']]
+    # Use 'season' as categorical feature for better winter prediction
+    season_categories = ['Autumn', 'Monsoon', 'Spring', 'Winter', 'Summer']
+    if 'season' in df.columns:
+        X = df[['year', 'month', 'day', 'season']].copy()
+        # One-hot encode 'season' and ensure all possible columns exist
+        X = pd.get_dummies(X, columns=['season'])
+        for cat in season_categories:
+            col = f'season_{cat}'
+            if col not in X.columns:
+                X[col] = 0
+        # Ensure column order is consistent
+        season_cols = [f'season_{cat}' for cat in season_categories]
+        X = X[['year', 'month', 'day'] + season_cols]
+    else:
+        X = df[['year', 'month', 'day']]
     y = df['tavg']
 
     # Time-based split
